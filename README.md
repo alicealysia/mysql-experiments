@@ -8,13 +8,13 @@ The first is a series of very simple string constructors, allowing simple find, 
 
 They work through chaining like so:
 
-Find(<table>, [<columns>]).condition(<column>, <symbol>, <value>).execute()
+Find(table, [columns]).condition(column, symbol, value).execute()
 
-Insert(<table>).value(<column>, <value>).execute()
+Insert(table).value(column, value).execute()
 
-Delete(<table>)(<column>, <symbol>, <value>).execute()
+Delete(table)(column, symbol, value).execute()
 
-Update(<table>).value(<column>, <value>).condition(<column>, <symbol>, <value>).execute()
+Update(table).value(column, value).condition(column, symbol, value).execute()
 
 You can chain conditions and values indefinitely in the above examples.
 
@@ -22,36 +22,36 @@ When chaining conditions you can also add joiners (optionally)
 
 **Generalized query proxies**
 
-**This is one of the approaches I haven’t seen before, so I gave it a shot.**
+This is one of the approaches I haven’t seen before, so I gave it a shot.
 
-**This uses proxies to make SQL queries behave in a more “typescript” kinda way. So this is a lot more flexible in usage and application, it’s become my goto for easy queries.**
+This uses proxies to make SQL queries behave in a more “typescript” kinda way. So this is a lot more flexible in usage and application, it’s become my goto for easy queries.
 
-**Start by creating a query**
+Start by creating a query
 
-**Var <name of query object> = new Query(<table>)**
+Var queryObject = new Query(table)
 
-**then add constraints and/or parameters. Parameters are used when inserting or updating. Constraints are used in where statements by Updates, Deletions and Selections.**
+then add constraints and/or parameters. Parameters are used when inserting or updating. Constraints are used in where statements by Updates, Deletions and Selections.
 
-**<name of query object>.parameter = {<column>: value}**
- **<name of query object>.parameter.<column> = value.**
- **<name of query object>.constraint = {<column>: value}**
- **<name of query object>.constraint.<column> = value**
+queryObject.parameter = {column: value}
+queryObject.parameter.column = value.
+queryObject.constraint = {column: value}
+queryObject.constraint.column = value
 
-**You can also upfront define your where statement if you find simple constraints lacking**
+You can also upfront define your where statement if you find simple constraints lacking
 
-**<query object>.WHERE(‘where columnA \* columnB = value’)**
+queryObject.WHERE(‘where columnA \* columnB = value’)
 
-**Finally, once your constraints and/or parameters are set, you can run your query**
+Finally, once your constraints and/or parameters are set, you can run your query
 
-**Const myFunRow = await queryObject.findOne()**
+const myFunRow = await queryObject.findOne()
 
-**Const myFunTable = await queryObject.find(columnA)**
+const myFunTable = await queryObject.find(columnA)
 
-**Await queryObject.insert()**
+await queryObject.insert()
 
-**Await queryObject.delete()**
+await queryObject.delete()
 
-**Await queryObject.update()**
+await queryObject.update()
 
 ### **Why I made this**
 
