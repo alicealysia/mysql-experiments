@@ -5,3 +5,4 @@ import Insert from './insert';
 
 export { Delete, Update, Find, Insert };
 export * from './query';
+export * from './proxy-query';
