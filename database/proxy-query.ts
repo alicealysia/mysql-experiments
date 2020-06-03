@@ -1,13 +1,27 @@
 import { query_mysql } from './query';
 import {Table} from './names';
 
-export class Query <tbl extends keyof Table, params extends Table[tbl]> {
+interface KeyParamPair <T> {
+    [key: string]: Partial<T>
+}
+
+interface KeyAsPair <T> {
+    [key: string]: string
+}
+
+export const query = <tbl extends keyof Table, params extends Table[tbl]> (table: tbl) => {
+    return new Query(table);
+}
+
+class Query <tbl extends keyof Table, params extends Table[tbl]> {
     private table: tbl;
     private paramList: Partial<params> = {} as params;
-    private rows: params[] = [];
     private rawConstraint: string = '';
-    private parameters: { [key:string]: Partial<params> }[] = [];
-    private constraints: { [key:string]: Partial<params> }[] = [];
+    private parameters: KeyParamPair<params> = {};
+    private constraints: KeyParamPair<params> = {};
+    private orders : {[key:string]: string} = {};
+    private renames : KeyAsPair<params> = {};
+    public limit: number = 0;
     /**
      * begin your query
      * @param table name of the table you wish to query
@@ -26,9 +40,9 @@ export class Query <tbl extends keyof Table, params extends Table[tbl]> {
      * find a single row.
      * @param params parameters you wish to scope your query by. leave blank for a wildcard.
      */
-    public async findOne (params?: (keyof Partial<params>)[] | keyof Partial<params>) {
+    public async findOne (...params: (keyof Partial<params>)[]) {
         const where = this.setWhere();
-        const parameters = params? Array.isArray(params)? params.join(', ') : params.toString(): '*';
+       const parameters = params.length > 0? params.join(', ') : '*';
         const queryResults: params = await query_mysql(`SELECT ${parameters} FROM ${this.table} ${where}`).then(results => results[0]); 
         return queryResults;
     }
@@ -36,11 +50,14 @@ export class Query <tbl extends keyof Table, params extends Table[tbl]> {
      * find all rows which match the specified constraints
      * @param params parameters you wish to scope your query by. leave blank for a wildcard.
      */
-    public async find (params?: keyof Partial<params>[]) {
+    public async find (...params: (keyof Partial<params>)[]) {
+        
         const where = this.setWhere();
-        const parameters = params? Array.isArray(params)? params.join(', ') : params.toString(): '*';
-        this.rows = await query_mysql(`SELECT ${parameters} FROM ${this.table} ${where}`); 
-        return this.rows;
+        const parameters = params.length > 0? params.join(', ') : '*';
+
+        const queryResults: (params)[] = await query_mysql(`SELECT ${parameters} FROM ${this.table} ${where}`);
+        
+        return queryResults;
     }
     /**
      * insert specified parameters, constraints will not be used by this.
@@ -67,32 +84,49 @@ export class Query <tbl extends keyof Table, params extends Table[tbl]> {
         await query_mysql(`UPDATE ${this.table} SET ${keys} ${where}`, values);
     }
 
+    public setParameters (parameters: Partial<params>) {
+        Object.keys(parameters).forEach(param => {
+            this.parameters[param] = parameters[param];
+        })
+        return this;
+    }
+    public setConstraints (parameters: Partial<params>) {
+        Object.keys(parameters).forEach(param => {
+            this.constraints[param] = parameters[param];
+        })
+        return this;
+    }
+    public setLimit (limit: number) {
+        this.limit = limit;
+        return this;
+    }
+
     //the handlers for parameters and constraints.
     private parameterHandler = {
         set: <T extends keyof Partial<params>> (obj: params, prop: T, value: params[T]) => {
-            this.parameters.push({
-                [prop]: value
-            })
+            this.parameters[prop.toString()] = value;
+            console.log(this.parameters);
             return true;
         }
     }
     private constraintHandler = {
         set: <T extends keyof Partial<params>> (obj: params, prop: T, value: params[T]) => {
-            this.constraints.push({
-                [prop]: value
-            })
+            this.constraints[prop.toString()] = value;
             return true;
         }
+    }
+    public orderBy <T extends keyof Partial<params>> (parameter: T, value: 'ASC' | 'DESC') {
+        this.orders[parameter.toString()] = value;
+        return this;
     }
     private setWhere () {
         if (this.rawConstraint !== '') {
             return this.rawConstraint;
         }
-        const entries = Object.entries(this.constraints).map(value => `${value[0]} = ${value[1]}`).join(' AND ');
-        if (!entries || entries === '') {
-            return '';
-        }
-        return `WHERE ${entries}`;
+        const constraints = Object.entries(this.constraints).length > 0? `WHERE ${Object.entries(this.constraints).map(value => `${value[0]} = ${typeof value[1] === 'string'? `"${value[1]}"`: value[1]}`).join(' AND ')} `: '';
+        const orders = Object.entries(this.orders).length > 0? `ORDER BY ${Object.entries(this.orders).map(value => `${value[0]} "${value[1]}"`).join(', ')} `: '';
+        const limit = this.limit !== 0? ` LIMIT ${this.limit}` : '';
+        return `${constraints}${orders}${limit}`;
     }
 
     /** setter only!!!
@@ -103,4 +137,7 @@ export class Query <tbl extends keyof Table, params extends Table[tbl]> {
      * set the constraints for a simple where clause.
      */
     public constraint = new Proxy(this.paramList, this.constraintHandler);
+    /** setter only!!!
+     * set one or more objects to order by.
+     */
 }
